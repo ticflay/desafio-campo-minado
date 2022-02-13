@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title></title>
+    <script src="js/campo-minado.js"></script>
+</head>
+
+<body>
+    <div id="exibir-execucao"></div>
+
+    <script>
+        var campoMinado = new CampoMinado();
+
+
+        document.getElementById('exibir-execucao').innerHTML += '----------- Início do jogo -----------';
+        document.getElementById('exibir-execucao').innerHTML += '<pre>' + campoMinado.Tabuleiro() + '</pre>';
+
+
+        // Realize sua codificação a partir deste ponto, boa sorte!
+        var globalBombs = [];
+        main();
+
+
+        function main() {
+
+            while (campoMinado.JogoStatus() === 0) {
+                Init();
+            }
+            if (campoMinado.JogoStatus() === 1) {
+                document.getElementById("exibir-execucao").innerHTML += "<pre> -----------Status: VITÓRIA ----------- </pre>";
+                document.getElementById("exibir-execucao").innerHTML += `<pre>${campoMinado.Tabuleiro()}</pre>`;
+
+            } else if (campoMinado.JogoStatus() === 2) {
+                document.getElementById("exibir-execucao").innerHTML += "<pre> -----------Status: GAME OVER ----------- </pre>";
+                document.getElementById("exibir-execucao").innerHTML += `<pre>${campoMinado.Tabuleiro()}</pre>`;
+            }
+
+
+            function Init() {
+                const tabuleiro = StringToArray(campoMinado.Tabuleiro());
+                const params = {
+                    tabuleiro: tabuleiro,
+                    bombs: globalBombs,
+                    solved: GetSolvedArray({
+                        tabuleiro: tabuleiro,
+                        bombs: globalBombs
+                    }),
+                    closed: GetClosedArray({
+                        tabuleiro: tabuleiro,
+                        bombs: globalBombs
+                    })
+                };
+                document.getElementById("exibir-execucao").innerHTML += "<pre> ----------- Status: Jogo em Aberto ----------- </pre>";
+                document.getElementById("exibir-execucao").innerHTML += `<pre>${campoMinado.Tabuleiro()}</pre>`;
+                globalBombs = UpdateBombs(params);
+
+            }
+
+            function UpdateBombs({
+                tabuleiro,
+                bombs,
+                solved,
+                closed
+            }) {
+                let countChanges = 0;
+                for (let i in tabuleiro) {
+                    for (let j in tabuleiro[i]) {
+                        if (!HasElement({
+                                element: [i, j],
+                                array: solved
+                            }) && !HasElement({
+                                element: [i, j],
+                                array: closed
+                            })) {
+                            const params = {
+                                line: i,
+                                column: j,
+                                tabuleiro: tabuleiro,
+                                bombs: bombs,
+                                closed: closed
+                            };
+                            const {
+                                bomb,
+                                changed
+                            } = DecifeIfOpen(params);
+                            bombs = bomb;
+                            if (changed) {
+                                countChanges++;
+                            }
+                        }
+                    }
+                }
+                //Se não foi possível achar um local 'safe' para abrir ou nenhuma bomba foi encontrada, abrir uma casa aleatória
+                if (countChanges === 0) {
+                    const {
+                        i,
+                        j
+                    } = generateRandom({
+                        numberOfLines: tabuleiro.length,
+                        numberOfColumns: tabuleiro[0].length
+                    });
+                    openHouse({
+                        line: i,
+                        column: j
+                    });
+
+                }
+                return bombs;
+            }
+
+            function openHouse({
+                line,
+                column
+            }) {
+
+                campoMinado.Abrir(line, column);
+                DisplayOpenMessage({
+                    line,
+                    column
+                });
+            }
+
+            function generateRandom({
+                numberOfLines,
+                numberOfColumns
+            }) {
+                return {
+                    i: Math.floor(Math.random() * numberOfLines),
+                    j: Math.floor(Math.random() * numberOfColumns)
+                };
+            }
+
+            function DecifeIfOpen({
+                line,
+                column,
+                tabuleiro,
+                bombs,
+                closed
+            }) {
+                const adjacents = FindAdjacent({
+                    line,
+                    column,
+                    tabuleiro
+                });
+                casaString = tabuleiro[line][column];
+                countAdjacentsBombs = GetCountBombs({
+                    adjacents,
+                    bombs
+                });
+                adjacentsClosedPosition = GetClosedAdjacents({
+                    adjacents,
+                    closed,
+                    bombs
+                });
+                if (casaString !== "-") {
+                    const casaNum = parseInt(casaString, 10);
+                    if (parseInt(countAdjacentsBombs, 10) === casaNum) {
+                        OpenAllAdjacents({
+                            adjacents,
+                            bombs
+                        });
+                        return {
+                            bomb: bombs,
+                            changed: true
+                        };
+                    } else if (adjacentsClosedPosition.length + parseInt(countAdjacentsBombs, 10) === casaNum) {
+                        bombs = BombFound({
+                            adjacentsClosedPosition,
+                            bombs
+                        });
+                        return {
+                            bomb: bombs,
+                            changed: true
+                        };
+                    }
+                }
+                return {
+                    bomb: bombs,
+                    changed: false
+                };
+            }
+
+            function GetClosedAdjacents({
+                adjacents,
+                closed,
+                bombs
+            }) {
+                let closedAdjacents = [];
+                for (let item in adjacents) {
+                    if (HasElement({
+                            element: adjacents[item].position,
+                            array: closed
+                        }) && !HasElement({
+                            element: adjacents[item].position,
+                            array: bombs
+                        })) {
+                        closedAdjacents.push(adjacents[item].position);
+                    }
+                }
+                return closedAdjacents;
+            }
+
+            function DisplayOpenMessage({
+                line,
+                column
+            }) {
+                document.getElementById("exibir-execucao").innerHTML += `<pre> Abrindo casa: linha:(${line}) / coluna: (${column}) </pre>`;
+            }
+
+            function GetCountBombs({
+                adjacents,
+                bombs
+            }) {
+                let countBombs = 0;
+                for (let item in adjacents) {
+                    if (HasElement({
+                            element: adjacents[item].position,
+                            array: bombs
+                        })) {
+                        countBombs++;
+                    }
+                }
+                return countBombs;
+            }
+
+            function OpenAllAdjacents({
+                adjacents,
+                bombs
+            }) {
+                for (let item in adjacents) {
+                    if (adjacents[item].label === "-" && !HasElement({
+                            element: adjacents[item].position,
+                            array: bombs
+                        })) {
+                        const x = parseInt(adjacents[item].position[0], 10) + 1;
+                        const y = parseInt(adjacents[item].position[1], 10) + 1;
+                        openHouse({
+                            line: x,
+                            column: y
+                        });
+                    }
+                }
+
+            }
+
+            function BombFound({
+                adjacentsClosedPosition,
+                bombs
+            }) {
+                for (let index in adjacentsClosedPosition) {
+                    if (!HasElement({
+                            element: adjacentsClosedPosition[index],
+                            array: bombs
+                        })) {
+                        const i = parseInt(adjacentsClosedPosition[index][0], 10);
+                        const j = parseInt(adjacentsClosedPosition[index][1], 10);
+                        DisplayBombMessage({
+                            line: i + 1,
+                            column: j + 1
+                        });
+                        return [...bombs, [i, j]];
+                    }
+                }
+                return bombs;
+            }
+
+            function DisplayBombMessage({
+                line,
+                column
+            }) {
+                document.getElementById("exibir-execucao").innerHTML += `<pre> Bomba Encontrada: linha:(${line}) / coluna: (${column}) </pre>`;
+
+            }
+
+            function GetClosedArray({
+                tabuleiro,
+                bombs
+            }) {
+                let closed = new Array;
+                for (let i in tabuleiro) {
+                    for (let j in tabuleiro[i]) {
+                        if (tabuleiro[i][j] === "-") {
+                            if (bombs.length !== 0) {
+                                for (let index in bombs) {
+                                    if (!HasElement({
+                                            element: [i, j],
+                                            array: bombs
+                                        })) {
+                                        closed.push([i, j]);
+                                    }
+                                }
+                            } else {
+                                closed.push([i, j]);
+                            }
+                        }
+                    }
+                }
+                return closed;
+            }
+
+            function GetSolvedArray({
+                tabuleiro,
+                bombs
+            }) {
+                let solved = new Array;
+                for (let i in tabuleiro) {
+                    for (let j in tabuleiro[i]) {
+                        const adjacents = FindAdjacent({
+                            line: i,
+                            column: j,
+                            tabuleiro: tabuleiro
+                        });
+                        if (isSolved({
+                                adjacents,
+                                bombs
+                            })) {
+                            solved.push([i, j]);
+                        }
+                    }
+                }
+                return solved;
+            }
+
+            function StringToArray(str) {
+                const string = str.replace(/(\n)/gm, "#");
+                const multiArray = string.split(/\s*\#\s*/g).map(function(substr) {
+                    return substr.split('');
+                });
+                return multiArray;
+            }
+
+            function FindAdjacent({
+                line,
+                column,
+                tabuleiro
+            }) {
+                let result = new Array;
+                line = parseInt(line, 10);
+                column = parseInt(column, 10);
+                for (dx = -1; dx <= 1; dx++) {
+                    for (dy = -1; dy <= 1; dy++) {
+                        if (dx != 0 || dy != 0) {
+                            const newLine = line + dx;
+                            const newColumn = column + dy;
+                            if (!(newLine < 0 || newLine > 8 || newColumn < 0 || newColumn > 8)) {
+                                result.push({
+                                    label: tabuleiro[newLine][newColumn],
+                                    position: [newLine, newColumn]
+                                });
+                            }
+
+                        }
+                    }
+                }
+                return result;
+            }
+
+            function HasElement({
+                element,
+                array
+            }) {
+                const elementX = parseInt(element[0], 10);
+                const elementY = parseInt(element[1], 10);
+                for (let item in array) {
+                    const arrayX = parseInt(array[item][0], 10);
+                    const arrayY = parseInt(array[item][1], 10);
+
+                    if (arrayX === elementX && arrayY === elementY) {
+                        return true;
+                    }
+                }
+                return false;
+            }
+
+            function isSolved({
+                adjacents,
+                bombs
+            }) {
+                for (let index in adjacents) {
+                    if (adjacents[index].label === "-" && bombs.length !== 0) {
+                        for (bomb in bombs) {
+                            if (!HasElement({
+                                    element: adjacents[index].position,
+                                    array: bombs
+                                })) {
+                                return false;
+                            }
+                        }
+                    } else if (adjacents[index].label === "-" && bombs.length === 0) {
+                        return false;
+                    }
+                }
+                return true;
+            }
+        }
+    </script>
+</body>
+
+</html>
