@@ -37,6 +37,14 @@
             }
 
 
+            /**
+             * tabuleiro -> array de campoMinado.Tabuleiro()
+             * bombs -> array com a posição de todas as bombas encontradas
+             * hidden -> array com a posição de todas as casas que ainda estão escondidas 
+             * solved -> array coma  posição de todas as casas que já foram resolvidas
+             * Ou seja, todas aquelas onde a(s) bomba(s) já foi(foram) encontrada(s),
+             * e todas as casas sem bomba abertas
+             */
             function Init() {
                 const tabuleiro = StringToArray(campoMinado.Tabuleiro());
                 const params = {
@@ -46,7 +54,7 @@
                         tabuleiro: tabuleiro,
                         bombs: globalBombs
                     }),
-                    closed: GetClosedArray({
+                    hidden: GetHiddenArray({
                         tabuleiro: tabuleiro,
                         bombs: globalBombs
                     })
@@ -61,7 +69,7 @@
                 tabuleiro,
                 bombs,
                 solved,
-                closed
+                hidden
             }) {
                 let countChanges = 0;
                 for (let i in tabuleiro) {
@@ -71,19 +79,19 @@
                                 array: solved
                             }) && !HasElement({
                                 element: [i, j],
-                                array: closed
+                                array: hidden
                             })) {
                             const params = {
                                 line: i,
                                 column: j,
                                 tabuleiro: tabuleiro,
                                 bombs: bombs,
-                                closed: closed
+                                hidden: hidden
                             };
                             const {
                                 bomb,
                                 changed
-                            } = DecifeIfOpen(params);
+                            } = DecideIfOpen(params);
                             bombs = bomb;
                             if (changed) {
                                 countChanges++;
@@ -91,18 +99,12 @@
                         }
                     }
                 }
-                //Se não foi possível achar um local 'safe' para abrir ou nenhuma bomba foi encontrada, abrir uma casa aleatória
+                //Se nada mudou, abrir uma casa aleátoria entre as casas escondidas
                 if (countChanges === 0) {
-                    const {
-                        i,
-                        j
-                    } = generateRandom({
-                        numberOfLines: tabuleiro.length,
-                        numberOfColumns: tabuleiro[0].length
-                    });
+                    const positionToOpen = GetRandomHidden(hidden);
                     openHouse({
-                        line: i,
-                        column: j
+                        line: positionToOpen[0],
+                        column: positionToOpen[1]
                     });
 
                 }
@@ -121,22 +123,18 @@
                 });
             }
 
-            function generateRandom({
-                numberOfLines,
-                numberOfColumns
-            }) {
-                return {
-                    i: Math.floor(Math.random() * numberOfLines),
-                    j: Math.floor(Math.random() * numberOfColumns)
-                };
+            function GetRandomHidden(hidden) {
+                const size = hidden.length;
+                const index = Math.floor(Math.random() * size);
+                return hidden[index];
             }
 
-            function DecifeIfOpen({
+            function DecideIfOpen({
                 line,
                 column,
                 tabuleiro,
                 bombs,
-                closed
+                hidden
             }) {
                 const adjacents = FindAdjacent({
                     line,
@@ -148,9 +146,9 @@
                     adjacents,
                     bombs
                 });
-                adjacentsClosedPosition = GetClosedAdjacents({
+                adjacentsHiddenPosition = GetHiddenAdjacents({
                     adjacents,
-                    closed,
+                    hidden,
                     bombs
                 });
                 if (casaString !== "-") {
@@ -164,9 +162,9 @@
                             bomb: bombs,
                             changed: true
                         };
-                    } else if (adjacentsClosedPosition.length + parseInt(countAdjacentsBombs, 10) === casaNum) {
+                    } else if (adjacentsHiddenPosition.length + parseInt(countAdjacentsBombs, 10) === casaNum) {
                         bombs = BombFound({
-                            adjacentsClosedPosition,
+                            adjacentsHiddenPosition,
                             bombs
                         });
                         return {
@@ -181,24 +179,24 @@
                 };
             }
 
-            function GetClosedAdjacents({
+            function GetHiddenAdjacents({
                 adjacents,
-                closed,
+                hidden,
                 bombs
             }) {
-                let closedAdjacents = [];
+                let hiddenAdjacents = [];
                 for (let item in adjacents) {
                     if (HasElement({
                             element: adjacents[item].position,
-                            array: closed
+                            array: hidden
                         }) && !HasElement({
                             element: adjacents[item].position,
                             array: bombs
                         })) {
-                        closedAdjacents.push(adjacents[item].position);
+                        hiddenAdjacents.push(adjacents[item].position);
                     }
                 }
-                return closedAdjacents;
+                return hiddenAdjacents;
             }
 
             function DisplayOpenMessage({
@@ -245,16 +243,16 @@
             }
 
             function BombFound({
-                adjacentsClosedPosition,
+                adjacentsHiddenPosition,
                 bombs
             }) {
-                for (let index in adjacentsClosedPosition) {
+                for (let index in adjacentsHiddenPosition) {
                     if (!HasElement({
-                            element: adjacentsClosedPosition[index],
+                            element: adjacentsHiddenPosition[index],
                             array: bombs
                         })) {
-                        const i = parseInt(adjacentsClosedPosition[index][0], 10);
-                        const j = parseInt(adjacentsClosedPosition[index][1], 10);
+                        const i = parseInt(adjacentsHiddenPosition[index][0], 10);
+                        const j = parseInt(adjacentsHiddenPosition[index][1], 10);
                         DisplayBombMessage({
                             line: i + 1,
                             column: j + 1
@@ -273,11 +271,11 @@
 
             }
 
-            function GetClosedArray({
+            function GetHiddenArray({
                 tabuleiro,
                 bombs
             }) {
-                let closed = new Array;
+                let hidden = new Array;
                 for (let i in tabuleiro) {
                     for (let j in tabuleiro[i]) {
                         if (tabuleiro[i][j] === "-") {
@@ -287,16 +285,16 @@
                                             element: [i, j],
                                             array: bombs
                                         })) {
-                                        closed.push([i, j]);
+                                        hidden.push([i, j]);
                                     }
                                 }
                             } else {
-                                closed.push([i, j]);
+                                hidden.push([i, j]);
                             }
                         }
                     }
                 }
-                return closed;
+                return hidden;
             }
 
             function GetSolvedArray({
