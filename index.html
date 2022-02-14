@@ -25,7 +25,7 @@
         function main() {
 
             while (campoMinado.JogoStatus() === 0) {
-                Init();
+                init();
             }
             if (campoMinado.JogoStatus() === 1) {
                 document.getElementById("exibir-execucao").innerHTML += "<pre> -----------Status: VITÓRIA ----------- </pre>";
@@ -41,31 +41,30 @@
              * tabuleiro -> array de campoMinado.Tabuleiro()
              * bombs -> array com a posição de todas as bombas encontradas
              * hidden -> array com a posição de todas as casas que ainda estão escondidas 
-             * solved -> array coma  posição de todas as casas que já foram resolvidas
-             * Ou seja, todas aquelas onde a(s) bomba(s) já foi(foram) encontrada(s),
-             * e todas as casas sem bomba abertas
+             * solved -> array coma a posição de todas as casas que já foram resolvidas
+             * Ou seja, todas aquelas onde já se saber o valor das suas casas adjacentes
              */
-            function Init() {
-                const tabuleiro = StringToArray(campoMinado.Tabuleiro());
+            function init() {
+                const tabuleiro = stringToArray(campoMinado.Tabuleiro());
                 const params = {
                     tabuleiro: tabuleiro,
                     bombs: globalBombs,
-                    solved: GetSolvedArray({
+                    solved: getSolvedArray({
                         tabuleiro: tabuleiro,
                         bombs: globalBombs
                     }),
-                    hidden: GetHiddenArray({
+                    hidden: getHiddenArray({
                         tabuleiro: tabuleiro,
                         bombs: globalBombs
                     })
                 };
                 document.getElementById("exibir-execucao").innerHTML += "<pre> ----------- Status: Jogo em Aberto ----------- </pre>";
                 document.getElementById("exibir-execucao").innerHTML += `<pre>${campoMinado.Tabuleiro()}</pre>`;
-                globalBombs = UpdateBombs(params);
+                globalBombs = updateBombs(params);
 
             }
 
-            function UpdateBombs({
+            function updateBombs({
                 tabuleiro,
                 bombs,
                 solved,
@@ -74,10 +73,10 @@
                 let countChanges = 0;
                 for (let i in tabuleiro) {
                     for (let j in tabuleiro[i]) {
-                        if (!HasElement({
+                        if (!hasElement({
                                 element: [i, j],
                                 array: solved
-                            }) && !HasElement({
+                            }) && !hasElement({
                                 element: [i, j],
                                 array: hidden
                             })) {
@@ -91,7 +90,7 @@
                             const {
                                 bomb,
                                 changed
-                            } = DecideIfOpen(params);
+                            } = decideIfOpen(params);
                             bombs = bomb;
                             if (changed) {
                                 countChanges++;
@@ -101,7 +100,7 @@
                 }
                 //Se nada mudou, abrir uma casa aleátoria entre as casas escondidas
                 if (countChanges === 0) {
-                    const positionToOpen = GetRandomHidden(hidden);
+                    const positionToOpen = getRandomHidden(hidden);
                     openHouse({
                         line: positionToOpen[0],
                         column: positionToOpen[1]
@@ -117,36 +116,36 @@
             }) {
 
                 campoMinado.Abrir(line, column);
-                DisplayOpenMessage({
+                displayOpenMessage({
                     line,
                     column
                 });
             }
 
-            function GetRandomHidden(hidden) {
+            function getRandomHidden(hidden) {
                 const size = hidden.length;
                 const index = Math.floor(Math.random() * size);
                 return hidden[index];
             }
 
-            function DecideIfOpen({
+            function decideIfOpen({
                 line,
                 column,
                 tabuleiro,
                 bombs,
                 hidden
             }) {
-                const adjacents = FindAdjacent({
+                const adjacents = findAdjacent({
                     line,
                     column,
                     tabuleiro
                 });
                 casaString = tabuleiro[line][column];
-                countAdjacentsBombs = GetCountBombs({
+                countAdjacentsBombs = getCountBombs({
                     adjacents,
                     bombs
                 });
-                adjacentsHiddenPosition = GetHiddenAdjacents({
+                adjacentsHiddenPosition = getHiddenAdjacents({
                     adjacents,
                     hidden,
                     bombs
@@ -154,7 +153,7 @@
                 if (casaString !== "-") {
                     const casaNum = parseInt(casaString, 10);
                     if (parseInt(countAdjacentsBombs, 10) === casaNum) {
-                        OpenAllAdjacents({
+                        openAllAdjacents({
                             adjacents,
                             bombs
                         });
@@ -163,7 +162,7 @@
                             changed: true
                         };
                     } else if (adjacentsHiddenPosition.length + parseInt(countAdjacentsBombs, 10) === casaNum) {
-                        bombs = BombFound({
+                        bombs = bombFound({
                             adjacentsHiddenPosition,
                             bombs
                         });
@@ -179,40 +178,40 @@
                 };
             }
 
-            function GetHiddenAdjacents({
+            function getHiddenAdjacents({
                 adjacents,
                 hidden,
                 bombs
             }) {
-                let hiddenAdjacents = [];
+                let hiddenAdjacents = new Array;;
                 for (let item in adjacents) {
-                    if (HasElement({
+                    if (hasElement({
                             element: adjacents[item].position,
                             array: hidden
-                        }) && !HasElement({
+                        }) && !hasElement({
                             element: adjacents[item].position,
                             array: bombs
                         })) {
-                        hiddenAdjacents.push(adjacents[item].position);
+                        hiddenAdjacents = [...hiddenAdjacents, adjacents[item].position];
                     }
                 }
                 return hiddenAdjacents;
             }
 
-            function DisplayOpenMessage({
+            function displayOpenMessage({
                 line,
                 column
             }) {
                 document.getElementById("exibir-execucao").innerHTML += `<pre> Abrindo casa: linha:(${line}) / coluna: (${column}) </pre>`;
             }
 
-            function GetCountBombs({
+            function getCountBombs({
                 adjacents,
                 bombs
             }) {
                 let countBombs = 0;
                 for (let item in adjacents) {
-                    if (HasElement({
+                    if (hasElement({
                             element: adjacents[item].position,
                             array: bombs
                         })) {
@@ -222,12 +221,12 @@
                 return countBombs;
             }
 
-            function OpenAllAdjacents({
+            function openAllAdjacents({
                 adjacents,
                 bombs
             }) {
                 for (let item in adjacents) {
-                    if (adjacents[item].label === "-" && !HasElement({
+                    if (adjacents[item].label === "-" && !hasElement({
                             element: adjacents[item].position,
                             array: bombs
                         })) {
@@ -242,18 +241,18 @@
 
             }
 
-            function BombFound({
+            function bombFound({
                 adjacentsHiddenPosition,
                 bombs
             }) {
                 for (let index in adjacentsHiddenPosition) {
-                    if (!HasElement({
+                    if (!hasElement({
                             element: adjacentsHiddenPosition[index],
                             array: bombs
                         })) {
                         const i = parseInt(adjacentsHiddenPosition[index][0], 10);
                         const j = parseInt(adjacentsHiddenPosition[index][1], 10);
-                        DisplayBombMessage({
+                        displayBombMessage({
                             line: i + 1,
                             column: j + 1
                         });
@@ -263,7 +262,7 @@
                 return bombs;
             }
 
-            function DisplayBombMessage({
+            function displayBombMessage({
                 line,
                 column
             }) {
@@ -271,7 +270,7 @@
 
             }
 
-            function GetHiddenArray({
+            function getHiddenArray({
                 tabuleiro,
                 bombs
             }) {
@@ -281,15 +280,15 @@
                         if (tabuleiro[i][j] === "-") {
                             if (bombs.length !== 0) {
                                 for (let index in bombs) {
-                                    if (!HasElement({
+                                    if (!hasElement({
                                             element: [i, j],
                                             array: bombs
                                         })) {
-                                        hidden.push([i, j]);
+                                        hidden = [...hidden, [i, j]];
                                     }
                                 }
                             } else {
-                                hidden.push([i, j]);
+                                hidden = [...hidden, [i, j]];
                             }
                         }
                     }
@@ -297,14 +296,14 @@
                 return hidden;
             }
 
-            function GetSolvedArray({
+            function getSolvedArray({
                 tabuleiro,
                 bombs
             }) {
                 let solved = new Array;
                 for (let i in tabuleiro) {
                     for (let j in tabuleiro[i]) {
-                        const adjacents = FindAdjacent({
+                        const adjacents = findAdjacent({
                             line: i,
                             column: j,
                             tabuleiro: tabuleiro
@@ -313,22 +312,21 @@
                                 adjacents,
                                 bombs
                             })) {
-                            solved.push([i, j]);
+                            solved = [...solved, [i, j]];
                         }
                     }
                 }
                 return solved;
             }
 
-            function StringToArray(str) {
-                const string = str.replace(/(\n)/gm, "#");
-                const multiArray = string.split(/\s*\#\s*/g).map(function(substr) {
+            function stringToArray(string) {
+                const multiArray = string.split(/\s*\n\s*/g).map(function(substr) {
                     return substr.split('');
                 });
                 return multiArray;
             }
 
-            function FindAdjacent({
+            function findAdjacent({
                 line,
                 column,
                 tabuleiro
@@ -342,10 +340,10 @@
                             const newLine = line + dx;
                             const newColumn = column + dy;
                             if (!(newLine < 0 || newLine > 8 || newColumn < 0 || newColumn > 8)) {
-                                result.push({
+                                result = [...result, {
                                     label: tabuleiro[newLine][newColumn],
                                     position: [newLine, newColumn]
-                                });
+                                }]
                             }
 
                         }
@@ -354,7 +352,7 @@
                 return result;
             }
 
-            function HasElement({
+            function hasElement({
                 element,
                 array
             }) {
@@ -378,7 +376,7 @@
                 for (let index in adjacents) {
                     if (adjacents[index].label === "-" && bombs.length !== 0) {
                         for (bomb in bombs) {
-                            if (!HasElement({
+                            if (!hasElement({
                                     element: adjacents[index].position,
                                     array: bombs
                                 })) {
